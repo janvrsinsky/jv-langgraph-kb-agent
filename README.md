@@ -1,3 +1,5 @@
+![Brain](assets/hero.png)
+
 # langgraph-kb-agent ("Brain")
 
 [![tests](https://github.com/janvrsinsky/jv-langgraph-kb-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/janvrsinsky/jv-langgraph-kb-agent/actions/workflows/tests.yml) ![license](https://img.shields.io/badge/license-MIT-blue) ![language](https://img.shields.io/badge/lang-Python-3776ab)
