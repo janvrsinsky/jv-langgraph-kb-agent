@@ -67,9 +67,17 @@ def describe(msg) -> str:
         if msg.tool_calls:
             for tc in msg.tool_calls:
                 parts.append(f"CALL {tc['name']}({tc['args']})")
-        text = getattr(msg, "text", msg.content)
-        if callable(text):  # langchain-core < 1.6 exposed .text() as a method
-            text = text()
+        # Read the text off `content` directly. `.text` has been both a method
+        # and a property across langchain-core versions, and calling the method
+        # form emits a deprecation warning into the middle of the trace.
+        content = msg.content
+        if isinstance(content, str):
+            text = content
+        else:
+            text = "".join(
+                block.get("text", "") for block in content
+                if isinstance(block, dict) and block.get("type") == "text"
+            )
         if isinstance(text, str) and text.strip():
             parts.append(f"TEXT {text.strip()[:300]!r}")
         return "  AI        " + " | ".join(parts or ["<empty>"])

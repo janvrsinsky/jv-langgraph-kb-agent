@@ -57,6 +57,14 @@ knowledge base, which talks about a lost device reported to security. The dense
 branch still lands on the right passage, and `test_retrieval.py` pins that case
 so it stays true.
 
+**And where that stops.** The offline dense branch measures surface overlap, so
+it is sensitive to phrasing: *"stolen phone what to do"* is the same question
+with the words moved, and it lands on the wrong documents. A second test pins
+that too, because a limit worth knowing is worth failing a build over when it
+changes. `USE_ST=1` swaps in real embeddings and is the thing that closes the
+gap. [LIVE-RUN.md](LIVE-RUN.md) shows what this means in practice: a real model
+rewrites the question before the retriever ever sees it.
+
 **Why there is an abstain floor.** A dense retriever has no zero, so it will
 happily hand back four plausible passages for a question the corpus cannot
 answer, and a model given plausible context tends to use it. The tool therefore

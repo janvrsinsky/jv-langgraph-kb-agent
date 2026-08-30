@@ -113,3 +113,19 @@ def test_abstain_floor_sits_in_a_real_gap(retrievers):
     answerable = dense_top("what do I do when my phone is stolen")
 
     assert unanswerable < DENSE_ABSTAIN_FLOOR <= answerable
+
+
+def test_fallback_dense_branch_is_sensitive_to_phrasing(retrievers):
+    """A known limitation, pinned so it stays visible.
+
+    The offline dense branch is a hashed character n-gram vector, so it measures
+    surface overlap. It carries "what do I do when my phone is stolen" to the
+    right document, and it loses "stolen phone what to do", which is the same
+    question with the words moved. A real embedding model (USE_ST=1) is what
+    closes that gap; this test records where the stand-in stops.
+    """
+    def sources(query):
+        return [retrievers.by_id[pid]["source"] for pid, _ in retrievers.search("hybrid", query, 4)]
+
+    assert "security-policy.md" in sources("what do I do when my phone is stolen")
+    assert "security-policy.md" not in sources("stolen phone what to do")
