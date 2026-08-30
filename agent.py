@@ -11,11 +11,14 @@ that's the LangGraph literacy this project is for:
 - conditional edge (tools_condition): loops until the model stops calling tools
 - MemorySaver checkpointer + thread_id: multi-turn conversation memory
 
+The tool behind that loop is a real hybrid retriever, not a keyword match:
+BM25 and a dense branch are fused with reciprocal rank fusion (see retrieval/).
+It is standard library only, so the whole repo runs with no download.
+
 Run:  ANTHROPIC_API_KEY=... .venv/bin/python agent.py
 """
 
 import os
-import re
 from pathlib import Path
 
 from langchain_core.messages import SystemMessage
@@ -23,10 +26,14 @@ from langchain_core.tools import tool
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
-from rank_bm25 import BM25Okapi
+
+from retrieval import Retrievers, load_kb
 
 KB_DIR = Path(__file__).resolve().parent / "kb"
 MODEL = os.environ.get("MODEL", "claude-opus-5")
+RETRIEVAL_MODE = os.environ.get("RETRIEVAL_MODE", "hybrid")
+TOP_K = 4
+
 
 SYSTEM_PROMPT = """You are Brain, the internal assistant of Acme Robotics.
 Answer employee questions using the company knowledge base.
@@ -40,27 +47,15 @@ Rules:
 """
 
 
-# ---------- retrieval tool (BM25 over markdown paragraphs) ----------
-# Lexical BM25 keeps this repo dependency-light and key-free for retrieval.
-# In production this would be a vector store with hybrid dense+lexical search
-# and rank fusion; here the point is the graph, not the retriever.
+# ---------- retrieval tool (hybrid: BM25 + dense, fused with RRF) ----------
+# Two branches that fail differently: BM25 matches the words that were written,
+# the dense branch matches surface similarity, and reciprocal rank fusion
+# combines their *ranks* (their scores are not on a comparable scale). The whole
+# stack is standard library only, so the repo still runs with no API key and no
+# download - the same retrieval code that is measured and CI-gated in
+# jv-podcast-rag.
 
-def _tokenize(text: str) -> list[str]:
-    return re.findall(r"\w+", text.lower())
-
-
-def _load_kb() -> list[dict]:
-    passages = []
-    for doc in sorted(KB_DIR.glob("*.md")):
-        for para in re.split(r"\n\s*\n", doc.read_text(encoding="utf-8")):
-            para = para.strip()
-            if len(para) > 40:
-                passages.append({"source": doc.name, "text": para})
-    return passages
-
-
-_PASSAGES = _load_kb()
-_BM25 = BM25Okapi([_tokenize(p["text"]) for p in _PASSAGES])
+_RETRIEVERS = Retrievers(load_kb(KB_DIR))
 
 
 @tool
@@ -68,12 +63,13 @@ def search_kb(query: str) -> str:
     """Search the Acme Robotics internal knowledge base (HR policies, IT,
     products, onboarding). Returns the most relevant passages with their
     source document names."""
-    scores = _BM25.get_scores(_tokenize(query))
-    ranked = sorted(range(len(scores)), key=lambda i: -scores[i])[:4]
-    hits = [i for i in ranked if scores[i] > 0]
+    if not _RETRIEVERS.has_evidence(query):
+        return "No matching passages in the knowledge base."
+    hits = _RETRIEVERS.search(RETRIEVAL_MODE, query, k=TOP_K)
     if not hits:
         return "No matching passages in the knowledge base."
-    return "\n\n".join(f"[{_PASSAGES[i]['source']}]\n{_PASSAGES[i]['text']}" for i in hits)
+    passages = [_RETRIEVERS.by_id[pid] for pid, _score in hits]
+    return "\n\n".join(f"[{p['source']}]\n{p['text']}" for p in passages)
 
 
 # ---------- the graph ----------
@@ -109,6 +105,8 @@ def main() -> None:
     app = build_graph()
     config = {"configurable": {"thread_id": "demo"}}  # memory lives per thread_id
     print("Brain (Acme Robotics KB agent). Ctrl-C or 'exit' to quit.")
+    print(f"retrieval: {RETRIEVAL_MODE}, dense backend: {_RETRIEVERS.dense_backend}, "
+          f"{len(_RETRIEVERS.passages)} passages")
     print("Try: How many vacation days do I get? / What torque does the AcmeArm have?\n")
     while True:
         try:

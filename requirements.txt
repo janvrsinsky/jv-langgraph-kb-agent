@@ -1,6 +1,8 @@
 # Pinned to the versions this repo was actually verified on (offline tests and
 # the live check in LIVE-RUN.md), with an upper bound at the next major.
+#
+# Retrieval has no entry here on purpose: retrieval/ is standard library only.
+# (rank-bm25 was dropped when the toy keyword tool was replaced by it.)
 langgraph>=1.2.11,<2
 langchain-anthropic>=1.7.0,<2
-rank-bm25>=0.2.2,<0.3
 pytest>=8,<10

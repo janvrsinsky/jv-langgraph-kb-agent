@@ -23,3 +23,17 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: pytest tests/ -q
+
+  retrieval-stdlib-only:
+    # The retrieval stack claims to be standard library only. This job is the
+    # proof: nothing is installed but pytest, so if retrieval/ ever grows a
+    # dependency the claim fails here instead of quietly becoming untrue.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "pytest>=8,<10"
+      - run: python -c "import retrieval; r = retrieval.Retrievers(retrieval.load_kb()); print(len(r.passages), 'passages,', r.dense_backend)"
+      - run: pytest tests/test_retrieval.py -q

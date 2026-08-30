@@ -46,7 +46,13 @@ def test_search_kb_finds_the_right_doc():
     assert "27 vacation days" in result
 
 
-def test_search_kb_handles_no_match():
+def test_search_kb_abstains_instead_of_answering_anyway():
+    """The tool must hand the model nothing when nothing matches.
+
+    A hybrid retriever always has a nearest neighbour, so without the abstain
+    path the model would receive four plausible passages for an unanswerable
+    question. The floor itself is measured and tested in test_retrieval.py.
+    """
     result = search_kb.invoke({"query": "xyzzy quux frobnicate"})
     assert "No matching passages" in result
 

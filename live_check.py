@@ -40,8 +40,10 @@ SCENARIOS = [
      "I start on Monday as a field engineer. What do I have to do on day one, "
      "and what torque can the AcmeArm I will be working with deliver?",
      "two facts in two documents - one search or two loop iterations?"),
-    ("t-empty", "How do I claim reimbursement for a taxi ride to the airport?",
-     "BM25 returns nothing - does it stop cleanly or keep flailing?"),
+    ("t-lex", "What do I do when my phone is stolen?",
+     "no query term is in the KB at all - the dense branch is the only route in"),
+    ("t-abstain", "What is our policy on xyzzy frobnication?",
+     "retriever abstains and returns nothing - does the model stop cleanly?"),
     ("t-loop", "What is the company policy on pets in the office?",
      "plausible but absent - does the model reformulate and search a second time?"),
     ("t-loop2",
